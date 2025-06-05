@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 from io import BytesIO
 
@@ -23,7 +24,8 @@ df = df[df["Cód.Motivo"] == "DEC"].copy()
 # Preparo de colunas
 if df["Data Criação"].dtype != 'datetime64[ns]':
     df["Data Criação"] = pd.to_datetime(df["Data Criação"])
-df["Mês/Ano"] = df["Data Criação"].dt.to_period("M").astype(str)
+df["Ano"] = df["Data Criação"].dt.year
+df["Mês"] = df["Data Criação"].dt.month
 
 # Sidebar
 st.sidebar.title("📊 Filtros de Análise")
@@ -58,9 +60,16 @@ fig_filial = px.bar(df.groupby("Divisão")["Desconto"].sum().reset_index().sort_
 st.plotly_chart(fig_filial, use_container_width=True)
 
 # Linha do tempo - Evolução mensal
+df["Mês/Ano"] = pd.to_datetime(df["Data Criação"].dt.to_period("M").astype(str))
 df_mensal = df.groupby("Mês/Ano")["Desconto"].sum().reset_index()
+df_mensal = df_mensal.sort_values("Mês/Ano")
+
 st.subheader("Evolução Mensal dos Descontos")
-fig_mensal = px.line(df_mensal, x="Mês/Ano", y="Desconto", markers=True)
+fig_mensal = go.Figure()
+fig_mensal.add_trace(go.Bar(x=df_mensal["Mês/Ano"], y=df_mensal["Desconto"], name="Desconto"))
+fig_mensal.add_trace(go.Scatter(x=df_mensal["Mês/Ano"], y=df_mensal["Desconto"].rolling(3).mean(),
+                                mode='lines+markers', name="Média Móvel 3 meses", line=dict(color='orange')))
+fig_mensal.update_layout(xaxis_title="Mês/Ano", yaxis_title="Desconto", hovermode="x unified")
 st.plotly_chart(fig_mensal, use_container_width=True)
 
 # Pizza - Nível 1
