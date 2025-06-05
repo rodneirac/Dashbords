@@ -1,9 +1,21 @@
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from io import BytesIO
 
-# Carregar os dados (substitua pelo seu caminho se for local)
-df = pd.read_excel("EXPORT_20250604_114410.XLSX")
+st.set_page_config(page_title="Dashboard - Descontos DEC", layout="wide")
+
+# Upload de arquivo
+st.sidebar.title("📤 Upload de Planilha")
+uploaded_file = st.sidebar.file_uploader("Envie a planilha .xlsx atualizada:", type=["xlsx"])
+
+# Lê o arquivo enviado ou usa padrão
+if uploaded_file:
+    df = pd.read_excel(uploaded_file)
+    st.sidebar.success("Arquivo carregado com sucesso!")
+else:
+    st.sidebar.warning("Usando planilha padrão: EXPORT_20250604_114410.XLSX")
+    df = pd.read_excel("EXPORT_20250604_114410.XLSX")
 
 # Filtrar somente motivo DEC
 df = df[df["Cód.Motivo"] == "DEC"].copy()
@@ -14,7 +26,7 @@ if df["Data Criação"].dtype != 'datetime64[ns]':
 df["Mês/Ano"] = df["Data Criação"].dt.to_period("M").astype(str)
 
 # Sidebar
-st.sidebar.title("Filtros")
+st.sidebar.title("📊 Filtros de Análise")
 filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].unique()), default=None)
 status = st.sidebar.multiselect("Status", options=sorted(df["Status"].unique()), default=None)
 
