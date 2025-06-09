@@ -54,14 +54,6 @@ mes = [mes_map[m] for m in mes_nome] if mes_nome else None
 
 situacao = st.sidebar.multiselect("Situação (coluna W)", options=sorted(df[df.columns[22]].dropna().unique()), default=None)
 
-# Botão para limpar todos os filtros
-if st.sidebar.button("🔄 Limpar Filtros"):
-    filial = []
-    ano = []
-    mes = []
-    situacao = []
-    st.experimental_rerun()
-
 # Aplicar filtros
 if filial:
     df = df[df["Divisão"].isin(filial)]
