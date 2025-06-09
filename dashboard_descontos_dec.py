@@ -4,12 +4,15 @@ import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image
 from io import BytesIO
+import calendar
 
 st.set_page_config(page_title="Dashboard - Descontos DEC", layout="wide")
 
-# Exibe logomarca no topo
-display_logo = Image.open("logo-supermix-pq.png")
-st.image(display_logo, width=180)
+# Exibe logomarca centralizada ao lado do título
+col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
+with col_logo2:
+    display_logo = Image.open("logo-supermix-pq.png")
+    st.image(display_logo, width=180)
 
 # Upload de arquivo
 st.sidebar.title("📤 Upload de Planilha")
@@ -35,14 +38,26 @@ df["Mês"] = df["Data Criação"].dt.month
 # Sidebar
 st.sidebar.title("📊 Filtros de Análise")
 filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].unique()), default=None)
-mês = st.sidebar.multiselect("Mês", options=sorted(df["Mês"].unique()), default=None)
+ano = st.sidebar.multiselect("Ano", options=sorted(df["Ano"].unique()), default=None)
+
+# Filtrar meses disponíveis com nomes
+meses_disponiveis = df["Mês"].unique()
+meses_disponiveis.sort()
+mes_opcoes = [(m, calendar.month_name[m]) for m in meses_disponiveis]
+mes_map = {calendar.month_name[m]: m for m in meses_disponiveis if m in calendar.month_name}
+mes_nomes = [calendar.month_name[m] for m in meses_disponiveis if m in calendar.month_name]
+mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes, default=None)
+mes = [mes_map[m] for m in mes_nome] if mes_nome else None
+
 situacao = st.sidebar.multiselect("Situação (coluna W)", options=sorted(df[df.columns[22]].dropna().unique()), default=None)
 
 # Aplicar filtros
 if filial:
     df = df[df["Divisão"].isin(filial)]
-if mês:
-    df = df[df["Mês"].isin(mês)]
+if ano:
+    df = df[df["Ano"].isin(ano)]
+if mes:
+    df = df[df["Mês"].isin(mes)]
 if situacao:
     df = df[df[df.columns[22]].isin(situacao)]
 
