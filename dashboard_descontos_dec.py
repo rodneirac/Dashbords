@@ -40,16 +40,27 @@ st.sidebar.title("📊 Filtros de Análise")
 filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].unique()), default=None)
 ano = st.sidebar.multiselect("Ano", options=sorted(df["Ano"].unique()), default=None)
 
-# Filtrar meses disponíveis com nomes
-meses_disponiveis = df["Mês"].unique()
-meses_disponiveis.sort()
-mes_opcoes = [(m, calendar.month_name[m]) for m in meses_disponiveis]
-mes_map = {calendar.month_name[m]: m for m in meses_disponiveis if m in calendar.month_name}
-mes_nomes = [calendar.month_name[m] for m in meses_disponiveis if m in calendar.month_name]
+# Filtro dependente de mês baseado no ano
+if ano:
+    meses_filtrados = df[df["Ano"].isin(ano)]["Mês"].unique()
+else:
+    meses_filtrados = df["Mês"].unique()
+
+meses_filtrados.sort()
+mes_map = {calendar.month_name[m]: m for m in meses_filtrados if m in calendar.month_name}
+mes_nomes = [calendar.month_name[m] for m in meses_filtrados if m in calendar.month_name]
 mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes, default=None)
 mes = [mes_map[m] for m in mes_nome] if mes_nome else None
 
 situacao = st.sidebar.multiselect("Situação (coluna W)", options=sorted(df[df.columns[22]].dropna().unique()), default=None)
+
+# Botão para limpar todos os filtros
+if st.sidebar.button("🔄 Limpar Filtros"):
+    filial = []
+    ano = []
+    mes = []
+    situacao = []
+    st.experimental_rerun()
 
 # Aplicar filtros
 if filial:
