@@ -2,9 +2,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 from io import BytesIO
 
 st.set_page_config(page_title="Dashboard - Descontos DEC", layout="wide")
+
+# Exibe logomarca no topo
+display_logo = Image.open("logo-supermix-pq.png")
+st.image(display_logo, width=180)
 
 # Upload de arquivo
 st.sidebar.title("📤 Upload de Planilha")
