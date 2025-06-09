@@ -30,13 +30,16 @@ df["Mês"] = df["Data Criação"].dt.month
 # Sidebar
 st.sidebar.title("📊 Filtros de Análise")
 filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].unique()), default=None)
-status = st.sidebar.multiselect("Status", options=sorted(df["Status"].unique()), default=None)
+mês = st.sidebar.multiselect("Mês", options=sorted(df["Mês"].unique()), default=None)
+situacao = st.sidebar.multiselect("Situação (coluna W)", options=sorted(df[df.columns[22]].dropna().unique()), default=None)
 
 # Aplicar filtros
 if filial:
     df = df[df["Divisão"].isin(filial)]
-if status:
-    df = df[df["Status"].isin(status)]
+if mês:
+    df = df[df["Mês"].isin(mês)]
+if situacao:
+    df = df[df[df.columns[22]].isin(situacao)]
 
 # KPIs
 total_desconto = df["Desconto"].sum()
