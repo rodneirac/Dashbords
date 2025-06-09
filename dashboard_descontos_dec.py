@@ -37,18 +37,19 @@ df["Mês"] = df["Data Criação"].dt.month
 
 # Sidebar
 st.sidebar.title("📊 Filtros de Análise")
-filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].unique()), default=None)
-ano = st.sidebar.multiselect("Ano", options=sorted(df["Ano"].unique()), default=None)
+filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].dropna().unique()), default=None)
+ano = st.sidebar.multiselect("Ano", options=sorted(df["Ano"].dropna().unique()), default=None)
 
 # Filtro dependente de mês baseado no ano
 if ano:
-    meses_filtrados = df[df["Ano"].isin(ano)]["Mês"].unique()
+    meses_disponiveis = df[df["Ano"].isin(ano)]["Mês"].dropna().unique()
 else:
-    meses_filtrados = df["Mês"].unique()
+    meses_disponiveis = df["Mês"].dropna().unique()
 
-meses_filtrados.sort()
-mes_map = {calendar.month_name[m]: m for m in meses_filtrados if m in calendar.month_name}
-mes_nomes = [calendar.month_name[m] for m in meses_filtrados if m in calendar.month_name]
+meses_disponiveis = [int(m) for m in meses_disponiveis if pd.notna(m)]
+meses_disponiveis.sort()
+mes_nomes = [calendar.month_name[m] for m in meses_disponiveis]
+mes_map = {calendar.month_name[m]: m for m in meses_disponiveis}
 mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes, default=None)
 mes = [mes_map[m] for m in mes_nome] if mes_nome else None
 
