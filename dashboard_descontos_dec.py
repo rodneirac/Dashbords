@@ -118,13 +118,89 @@ fig_media_dias.update_layout(
 )
 st.plotly_chart(fig_media_dias, use_container_width=True)
 
+# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO ====
+st.subheader("Distribuição por Nível 1 Descrição")
+
+# Pizza PRL+ALT (quantidade de solicitações)
+col_pie1, col_pie2 = st.columns(2)
+with col_pie1:
+    pizza_prl_alt = (
+        df_prl_alt.groupby("Nível 1 Descrição")
+        .size()
+        .reset_index(name="Qtde")
+        .sort_values("Qtde", ascending=False)
+    )
+    fig_pie_prl_alt = px.pie(
+        pizza_prl_alt,
+        names="Nível 1 Descrição",
+        values="Qtde",
+        hole=0.4,
+        title="PRL + ALT (Qtd. Solicitações)"
+    )
+    st.plotly_chart(fig_pie_prl_alt, use_container_width=True)
+
+# Pizza DEC+ALT (valor de desconto)
+with col_pie2:
+    df_dec_alt = pd.concat([df_dec, df_alt])
+    pizza_dec_alt = (
+        df_dec_alt.groupby("Nível 1 Descrição")["Desconto"]
+        .sum()
+        .reset_index()
+        .sort_values("Desconto", ascending=False)
+    )
+    fig_pie_dec_alt = px.pie(
+        pizza_dec_alt,
+        names="Nível 1 Descrição",
+        values="Desconto",
+        hole=0.4,
+        title="DEC + ALT (Desconto R$)"
+    )
+    fig_pie_dec_alt.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_pie_dec_alt, use_container_width=True)
+
+col_pie3, col_pie4 = st.columns(2)
+# Pizza BXS (valor de desconto)
+with col_pie3:
+    pizza_bxs = (
+        df_bxs.groupby("Nível 1 Descrição")["Desconto"]
+        .sum()
+        .reset_index()
+        .sort_values("Desconto", ascending=False)
+    )
+    fig_pie_bxs = px.pie(
+        pizza_bxs,
+        names="Nível 1 Descrição",
+        values="Desconto",
+        hole=0.4,
+        title="BXS (Desconto R$)"
+    )
+    fig_pie_bxs.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_pie_bxs, use_container_width=True)
+
+# Pizza Cancelamentos (valor do montante)
+with col_pie4:
+    pizza_cancel = (
+        df_cancel.groupby("Nível 1 Descrição")["Montante"]
+        .sum()
+        .reset_index()
+        .sort_values("Montante", ascending=False)
+    )
+    fig_pie_cancel = px.pie(
+        pizza_cancel,
+        names="Nível 1 Descrição",
+        values="Montante",
+        hole=0.4,
+        title="Cancelamentos (Montante R$)"
+    )
+    fig_pie_cancel.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_pie_cancel, use_container_width=True)
+
 # Helper para formatar coluna como reais
 def format_reais(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # Tabelas e gráficos DEC + ALT
 st.subheader("Resumo DEC + ALT (por Filial e Nível 1 Descrição)")
-df_dec_alt = pd.concat([df_dec, df_alt])
 tab_dec_alt = df_dec_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
