@@ -231,47 +231,5 @@ with col_pie4:
 def format_reais(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# Tabelas e gráficos Desconto/Abatimento
-st.subheader("Resumo Desconto/Abat. (por Filial e Nível 1 Descrição)")
-tab_desc_abat = df_desc_abat.groupby(["Divisão", "Nível 1 Descrição"]).agg(
-    Qtde=('Desconto', 'count'),
-    Soma_Desconto=('Desconto', 'sum')
-).reset_index()
-tab_desc_abat = tab_desc_abat.sort_values("Soma_Desconto", ascending=False)
-tab_desc_abat["Soma_Desconto"] = tab_desc_abat["Soma_Desconto"].apply(format_reais)
-st.dataframe(tab_desc_abat, use_container_width=True)
-if not tab_desc_abat.empty:
-    fig_desc_abat = px.bar(tab_desc_abat, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                         title="Solicitações Desconto/Abat. por Filial e Nível 1")
-    st.plotly_chart(fig_desc_abat, use_container_width=True)
-
-# Tabelas e gráficos Baixa de Saldo
-st.subheader("Resumo Baixa de Saldo (por Filial e Nível 1 Descrição)")
-tab_baixa = df_baixa.groupby(["Divisão", "Nível 1 Descrição"]).agg(
-    Qtde=('Desconto', 'count'),
-    Soma_Desconto=('Desconto', 'sum')
-).reset_index()
-tab_baixa = tab_baixa.sort_values("Soma_Desconto", ascending=False)
-tab_baixa["Soma_Desconto"] = tab_baixa["Soma_Desconto"].apply(format_reais)
-st.dataframe(tab_baixa, use_container_width=True)
-if not tab_baixa.empty:
-    fig_baixa = px.bar(tab_baixa, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                     title="Solicitações Baixa de Saldo por Filial e Nível 1")
-    st.plotly_chart(fig_baixa, use_container_width=True)
-
-# Tabelas e gráficos Cancelamento
-st.subheader("Resumo Cancelamento (por Filial e Nível 1 Descrição)")
-tab_cancel = df_cancel.groupby(["Divisão", "Nível 1 Descrição"]).agg(
-    Qtde=('Montante', 'count'),
-    Soma_Montante=('Montante', 'sum')
-).reset_index()
-tab_cancel = tab_cancel.sort_values("Soma_Montante", ascending=False)
-tab_cancel["Soma_Montante"] = tab_cancel["Soma_Montante"].apply(format_reais)
-st.dataframe(tab_cancel, use_container_width=True)
-if not tab_cancel.empty:
-    fig_cancel = px.bar(tab_cancel, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                        title="Solicitações Cancelamento por Filial e Nível 1")
-    st.plotly_chart(fig_cancel, use_container_width=True)
-
 st.markdown("---")
 st.markdown("Relatório dinâmico por instrução: Prorrogação, Desconto/Abat., Baixa de Saldo e Cancelamento. Refine a análise usando os filtros laterais.")
