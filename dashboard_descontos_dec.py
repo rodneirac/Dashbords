@@ -65,19 +65,19 @@ qtd_cancel = len(df_cancel)
 montante_cancel = df_cancel["Montante"].sum()
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Qtde Prorrogações", qtd_prl_card)
+col1.metric("Solicitações Prorrogações", qtd_prl_card)
 col1.metric("Média de dias Prorrogações", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
-col2.metric("Qtde Solicitações Desc/Abatimentos", qtd_dec_card)
+col2.metric("Solicitações Desc/Abatimentos", qtd_dec_card)
 col2.metric(
     "Montante de Desc/Abatimentos",
     f"R$ {desconto_total_dec_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col3.metric("Solicitações BXS", qtd_bxs)
+col3.metric("Solicitações Baixas", qtd_bxs)
 col3.metric(
     "Montante de Baixas",
     f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col4.metric("Cancelamentos (CAN + REF)", qtd_cancel)
+col4.metric("Solicitações de Cancelamentos)", qtd_cancel)
 col4.metric(
     "Montante Cancelado",
     f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
