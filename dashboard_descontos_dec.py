@@ -24,6 +24,24 @@ if df["Data Criação"].dtype != 'datetime64[ns]':
 df["Ano"] = df["Data Criação"].dt.year
 df["Mês"] = df["Data Criação"].dt.month
 
+# ========== Agrupamento dos motivos ==========
+def agrupa_motivo(cod):
+    cod = str(cod).strip().upper()
+    if cod in ["XXX", "CEN", "DEV", "YYY"]:
+        return None
+    elif cod in ["PRL", "ALT"]:
+        return "Prorrogação"
+    elif cod == "DEC":
+        return "Desconto/Abat."
+    elif cod in ["CAN", "REF"]:
+        return "Cancelamento"
+    elif cod == "BXS":
+        return "Baixa de Saldo"
+    else:
+        return cod  # Se surgir novo código não previsto
+
+df["Motivo Agrupado"] = df["Cód.Motivo"].apply(agrupa_motivo)
+
 # Sidebar de filtros
 st.sidebar.title("📊 Filtros de Análise")
 filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].dropna().unique()))
@@ -36,11 +54,12 @@ mes_map = {calendar.month_name[m]: m for m in meses_disponiveis}
 mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes)
 mes = [mes_map[m] for m in mes_nome] if mes_nome else None
 
-motivos_disponiveis = sorted(df["Cód.Motivo"].dropna().unique())
-motivo = st.sidebar.multiselect("Motivo (Cód.Motivo)", options=motivos_disponiveis)
+# Filtrar só motivos válidos para o filtro (eliminando os ocultos)
+motivos_disponiveis = [m for m in sorted(df["Motivo Agrupado"].dropna().unique()) if m not in [None]]
+motivo = st.sidebar.multiselect("Motivo", options=motivos_disponiveis)
 
 # Filtros aplicados
-df_filtrado = df.copy()
+df_filtrado = df[df["Motivo Agrupado"].notna()].copy()
 if filial:
     df_filtrado = df_filtrado[df_filtrado["Divisão"].isin(filial)]
 if ano:
@@ -48,40 +67,41 @@ if ano:
 if mes:
     df_filtrado = df_filtrado[df_filtrado["Mês"].isin(mes)]
 if motivo:
-    df_filtrado = df_filtrado[df_filtrado["Cód.Motivo"].isin(motivo)]
+    df_filtrado = df_filtrado[df_filtrado["Motivo Agrupado"].isin(motivo)]
 
-# KPIs e agrupamentos de motivos
-df_prl = df_filtrado[df_filtrado["Cód.Motivo"] == "PRL"]
-df_dec = df_filtrado[df_filtrado["Cód.Motivo"] == "DEC"]
-df_alt = df_filtrado[df_filtrado["Cód.Motivo"] == "ALT"]
-df_bxs = df_filtrado[df_filtrado["Cód.Motivo"] == "BXS"]
-df_can = df_filtrado[df_filtrado["Cód.Motivo"] == "CAN"]
-df_ref = df_filtrado[df_filtrado["Cód.Motivo"] == "REF"]
+# ==== KPIs agrupando conforme regras ====
+# Prorrogação = PRL + ALT
+df_prorrog = df_filtrado[df_filtrado["Motivo Agrupado"] == "Prorrogação"]
+# Desconto/Abat = DEC + ALT
+df_desc_abat = df_filtrado[df_filtrado["Motivo Agrupado"] == "Desconto/Abat."]
+# Baixa de Saldo = BXS
+df_baixa = df_filtrado[df_filtrado["Motivo Agrupado"] == "Baixa de Saldo"]
+# Cancelamento = CAN + REF
+df_cancel = df_filtrado[df_filtrado["Motivo Agrupado"] == "Cancelamento"]
 
-qtd_prl_card = len(df_prl) + len(df_alt)
-media_dias_prl_alt = pd.concat([df_prl, df_alt])["Dias"].mean() if not pd.concat([df_prl, df_alt]).empty else None
-qtd_dec_card = len(df_dec) + len(df_alt)
-desconto_total_dec_alt = pd.concat([df_dec, df_alt])["Desconto"].sum()
-qtd_bxs = len(df_bxs)
-desconto_total_bxs = df_bxs["Desconto"].sum()
-df_cancel = pd.concat([df_can, df_ref])
+qtd_prl_card = len(df_prorrog)
+media_dias_prl = df_prorrog["Dias"].mean() if not df_prorrog.empty else None
+qtd_desc_card = len(df_desc_abat)
+desconto_total_dec_abat = df_desc_abat["Desconto"].sum() if not df_desc_abat.empty else 0
+qtd_bxs = len(df_baixa)
+desconto_total_bxs = df_baixa["Desconto"].sum() if not df_baixa.empty else 0
 qtd_cancel = len(df_cancel)
-montante_cancel = df_cancel["Montante"].sum()
+montante_cancel = df_cancel["Montante"].sum() if not df_cancel.empty else 0
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Solicitações Prorrogações", qtd_prl_card)
-col1.metric("Média Dias Prorrogações", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
-col2.metric("Solicitações Descontos/Abatimentos", qtd_dec_card)
+col1.metric("Solicitações Prorrogação", qtd_prl_card)
+col1.metric("Média Dias Prorrogação", f"{media_dias_prl:.1f}" if media_dias_prl else "-")
+col2.metric("Solicitações Desconto/Abat.", qtd_desc_card)
 col2.metric(
-    "Desconto Total (Descontos/Abatimentos)",
-    f"R$ {desconto_total_dec_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    "Desconto Total (Desconto/Abat.)",
+    f"R$ {desconto_total_dec_abat:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col3.metric("Solicitações Baixas", qtd_bxs)
+col3.metric("Solicitações Baixa de Saldo", qtd_bxs)
 col3.metric(
-    "Montante Baixas",
+    "Montante Baixa de Saldo",
     f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col4.metric("Cancelamentos (CAN + REF)", qtd_cancel)
+col4.metric("Cancelamentos", qtd_cancel)
 col4.metric(
     "Montante Cancelado",
     f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -89,13 +109,13 @@ col4.metric(
 
 st.markdown("---")
 
-# GRÁFICO DE RANKING GERAL COM TOOLTIP DETALHADO POR MOTIVO
-st.subheader("Ranking de Filiais por Total de Solicitações (Todos os Motivos)")
+# GRÁFICO DE RANKING GERAL COM TOOLTIP DETALHADO POR MOTIVO AGRUPADO
+st.subheader("Ranking de Filiais por Total de Solicitações (Agrupado por Tipo)")
 
 # Pivot para tooltip detalhado
 tooltip_pivot = (
     df_filtrado
-    .pivot_table(index="Divisão", columns="Cód.Motivo", values="Data Criação", aggfunc="count", fill_value=0)
+    .pivot_table(index="Divisão", columns="Motivo Agrupado", values="Data Criação", aggfunc="count", fill_value=0)
     .reset_index()
 )
 tooltip_pivot["Qtde_Solicitações"] = tooltip_pivot.drop(columns=["Divisão"]).sum(axis=1)
@@ -103,10 +123,8 @@ tooltip_pivot["Qtde_Solicitações"] = tooltip_pivot.drop(columns=["Divisão"]).
 # Ordenar do maior para menor
 tooltip_pivot = tooltip_pivot.sort_values("Qtde_Solicitações", ascending=False)
 
-# Determinar os motivos para o tooltip
-motivos = [col for col in tooltip_pivot.columns if col not in ["Divisão", "Qtde_Solicitações"]]
+motivos_agrup = [col for col in tooltip_pivot.columns if col not in ["Divisão", "Qtde_Solicitações"]]
 
-# Gráfico
 fig_qtde = px.bar(
     tooltip_pivot,
     x="Divisão",
@@ -114,11 +132,11 @@ fig_qtde = px.bar(
     text="Qtde_Solicitações",
     title="Ranking de Filiais por Total de Solicitações",
     color_discrete_sequence=["#800040"],
-    hover_data={m: True for m in motivos} | {"Qtde_Solicitações": True, "Divisão": True}
+    hover_data={m: True for m in motivos_agrup} | {"Qtde_Solicitações": True, "Divisão": True}
 )
 hovertemplate = "<b>Filial:</b> %{x}<br><b>Total de Solicitações:</b> %{y}<br>"
-for m in motivos:
-    hovertemplate += f"<b>{m}:</b> %{{customdata[{motivos.index(m)}]}}<br>"
+for m in motivos_agrup:
+    hovertemplate += f"<b>{m}:</b> %{{customdata[{motivos_agrup.index(m)}]}}<br>"
 fig_qtde.update_traces(
     texttemplate='%{text}',
     textposition='outside',
@@ -135,65 +153,63 @@ st.plotly_chart(fig_qtde, use_container_width=True)
 # ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO (COM "EFEITO 3D") ====
 st.subheader("Distribuição por Nível 1 Descrição")
 
-# Prorrogações (PRL+ALT)
+# Prorrogação
 col_pie1, col_pie2 = st.columns(2)
 with col_pie1:
-    df_prl_alt = pd.concat([df_prl, df_alt])
-    pizza_prl_alt = (
-        df_prl_alt.groupby("Nível 1 Descrição")
+    pizza_prl = (
+        df_prorrog.groupby("Nível 1 Descrição")
         .size()
         .reset_index(name="Qtde")
         .sort_values("Qtde", ascending=False)
     )
-    fig_pie_prl_alt = px.pie(
-        pizza_prl_alt,
+    fig_pie_prl = px.pie(
+        pizza_prl,
         names="Nível 1 Descrição",
         values="Qtde",
         hole=0.4,
-        title="Prorrogações"
+        title="Prorrogação"
     )
-    fig_pie_prl_alt.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_prl_alt))
-    st.plotly_chart(fig_pie_prl_alt, use_container_width=True)
+    fig_pie_prl.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_prl))
+    st.plotly_chart(fig_pie_prl, use_container_width=True)
 
-# Descontos e Abatimentos (DEC+ALT)
+# Desconto/Abatimento
 with col_pie2:
-    df_dec_alt = pd.concat([df_dec, df_alt])
-    pizza_dec_alt = (
-        df_dec_alt.groupby("Nível 1 Descrição")["Desconto"]
+    pizza_desc_abat = (
+        df_desc_abat.groupby("Nível 1 Descrição")["Desconto"]
         .sum()
         .reset_index()
         .sort_values("Desconto", ascending=False)
     )
-    fig_pie_dec_alt = px.pie(
-        pizza_dec_alt,
+    fig_pie_desc_abat = px.pie(
+        pizza_desc_abat,
         names="Nível 1 Descrição",
         values="Desconto",
         hole=0.4,
-        title="Descontos e Abatimentos"
+        title="Desconto/Abat."
     )
-    fig_pie_dec_alt.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_dec_alt))
-    st.plotly_chart(fig_pie_dec_alt, use_container_width=True)
+    fig_pie_desc_abat.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_desc_abat))
+    st.plotly_chart(fig_pie_desc_abat, use_container_width=True)
 
-# Baixas (BXS)
+# Baixa de Saldo
 col_pie3, col_pie4 = st.columns(2)
 with col_pie3:
-    pizza_bxs = (
-        df_bxs.groupby("Nível 1 Descrição")["Desconto"]
+    pizza_baixa = (
+        df_baixa.groupby("Nível 1 Descrição")["Desconto"]
         .sum()
         .reset_index()
         .sort_values("Desconto", ascending=False)
     )
-    fig_pie_bxs = px.pie(
-        pizza_bxs,
+    fig_pie_baixa = px.pie(
+        pizza_baixa,
         names="Nível 1 Descrição",
         values="Desconto",
         hole=0.4,
-        title="Baixas"
+        title="Baixa de Saldo"
     )
-    fig_pie_bxs.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_bxs))
-    st.plotly_chart(fig_pie_bxs, use_container_width=True)
+    fig_pie_baixa.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_baixa))
+    st.plotly_chart(fig_pie_baixa, use_container_width=True)
 
-# Cancelamentos (CAN+REF)
+# Cancelamento
 with col_pie4:
     pizza_cancel = (
         df_cancel.groupby("Nível 1 Descrição")["Montante"]
@@ -206,7 +222,7 @@ with col_pie4:
         names="Nível 1 Descrição",
         values="Montante",
         hole=0.4,
-        title="Cancelamentos"
+        title="Cancelamento"
     )
     fig_pie_cancel.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_cancel))
     st.plotly_chart(fig_pie_cancel, use_container_width=True)
@@ -215,36 +231,36 @@ with col_pie4:
 def format_reais(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# Tabelas e gráficos DEC + ALT
-st.subheader("Resumo Descontos e Abatimentos (por Filial e Nível 1 Descrição)")
-tab_dec_alt = df_dec_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+# Tabelas e gráficos Desconto/Abatimento
+st.subheader("Resumo Desconto/Abat. (por Filial e Nível 1 Descrição)")
+tab_desc_abat = df_desc_abat.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
 ).reset_index()
-tab_dec_alt = tab_dec_alt.sort_values("Soma_Desconto", ascending=False)
-tab_dec_alt["Soma_Desconto"] = tab_dec_alt["Soma_Desconto"].apply(format_reais)
-st.dataframe(tab_dec_alt, use_container_width=True)
-if not tab_dec_alt.empty:
-    fig_dec_alt = px.bar(tab_dec_alt, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                         title="Solicitações Descontos/Abatimentos por Filial e Nível 1")
-    st.plotly_chart(fig_dec_alt, use_container_width=True)
+tab_desc_abat = tab_desc_abat.sort_values("Soma_Desconto", ascending=False)
+tab_desc_abat["Soma_Desconto"] = tab_desc_abat["Soma_Desconto"].apply(format_reais)
+st.dataframe(tab_desc_abat, use_container_width=True)
+if not tab_desc_abat.empty:
+    fig_desc_abat = px.bar(tab_desc_abat, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                         title="Solicitações Desconto/Abat. por Filial e Nível 1")
+    st.plotly_chart(fig_desc_abat, use_container_width=True)
 
-# Tabelas e gráficos Baixas
-st.subheader("Resumo Baixas (por Filial e Nível 1 Descrição)")
-tab_bxs = df_bxs.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+# Tabelas e gráficos Baixa de Saldo
+st.subheader("Resumo Baixa de Saldo (por Filial e Nível 1 Descrição)")
+tab_baixa = df_baixa.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
 ).reset_index()
-tab_bxs = tab_bxs.sort_values("Soma_Desconto", ascending=False)
-tab_bxs["Soma_Desconto"] = tab_bxs["Soma_Desconto"].apply(format_reais)
-st.dataframe(tab_bxs, use_container_width=True)
-if not tab_bxs.empty:
-    fig_bxs = px.bar(tab_bxs, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                     title="Solicitações Baixas por Filial e Nível 1")
-    st.plotly_chart(fig_bxs, use_container_width=True)
+tab_baixa = tab_baixa.sort_values("Soma_Desconto", ascending=False)
+tab_baixa["Soma_Desconto"] = tab_baixa["Soma_Desconto"].apply(format_reais)
+st.dataframe(tab_baixa, use_container_width=True)
+if not tab_baixa.empty:
+    fig_baixa = px.bar(tab_baixa, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                     title="Solicitações Baixa de Saldo por Filial e Nível 1")
+    st.plotly_chart(fig_baixa, use_container_width=True)
 
-# Tabelas e gráficos Cancelamentos
-st.subheader("Resumo Cancelamentos (CAN + REF) (por Filial e Nível 1 Descrição)")
+# Tabelas e gráficos Cancelamento
+st.subheader("Resumo Cancelamento (por Filial e Nível 1 Descrição)")
 tab_cancel = df_cancel.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Montante', 'count'),
     Soma_Montante=('Montante', 'sum')
@@ -254,8 +270,8 @@ tab_cancel["Soma_Montante"] = tab_cancel["Soma_Montante"].apply(format_reais)
 st.dataframe(tab_cancel, use_container_width=True)
 if not tab_cancel.empty:
     fig_cancel = px.bar(tab_cancel, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                        title="Solicitações Canceladas por Filial e Nível 1")
+                        title="Solicitações Cancelamento por Filial e Nível 1")
     st.plotly_chart(fig_cancel, use_container_width=True)
 
 st.markdown("---")
-st.markdown("Relatório dinâmico por instrução: Prorrogações, Descontos/Abatimentos, Baixas e Cancelamentos. Refine a análise usando os filtros laterais.")
+st.markdown("Relatório dinâmico por instrução: Prorrogação, Desconto/Abat., Baixa de Saldo e Cancelamento. Refine a análise usando os filtros laterais.")
