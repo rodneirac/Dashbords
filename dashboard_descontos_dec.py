@@ -150,19 +150,16 @@ fig_qtde.update_layout(
 )
 st.plotly_chart(fig_qtde, use_container_width=True)
 
-# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO (COM TOOLTIP DETALHADO DE NÍVEL 2) ====
-st.subheader("Distribuição por Nível 1 Descrição")
-
-# ===== PRORROGAÇÃO (média de dias) =====
+# ===== PRORROGAÇÃO (Qtde de solicitações) =====
 df_tmp = df_prorrog.copy()
 df_n2 = (
-    df_tmp.groupby(["Nível 1 Descrição", "Nível 2 Descrição"])["Dias"].mean().reset_index()
+    df_tmp.groupby(["Nível 1 Descrição", "Nível 2 Descrição"]).size().reset_index(name="Qtde")
 )
 def tooltip_n2_prl(nivel1):
     fatia = df_n2[df_n2["Nível 1 Descrição"] == nivel1]
     if fatia.empty:
         return "-"
-    return "<br>".join([f"{n2}: {media:.1f}" for n2, media in zip(fatia["Nível 2 Descrição"], fatia["Dias"])])
+    return "<br>".join([f"{n2}: {qtde}" for n2, qtde in zip(fatia["Nível 2 Descrição"], fatia["Qtde"])])
 
 pizza_prl = (
     df_prorrog.groupby("Nível 1 Descrição")
@@ -184,7 +181,7 @@ with col_pie1:
     )
     fig_pie_prl.update_traces(
         textinfo='percent+label', pull=[0.08]*len(pizza_prl),
-        hovertemplate="<b>%{label}</b><br>Qtd: %{value}<br><br><b>Média de Dias por Nível 2:</b><br>%{customdata[0]}<extra></extra>"
+        hovertemplate="<b>%{label}</b><br>Qtd: %{value}<br><br><b>Qtde por Nível 2:</b><br>%{customdata[0]}<extra></extra>"
     )
     st.plotly_chart(fig_pie_prl, use_container_width=True)
 
