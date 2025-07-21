@@ -108,7 +108,6 @@ with col4:
     st.metric("Solicitações", qtd_cancel, help="Total de cancelamentos")
     st.metric("Montante", f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), help="Soma dos valores cancelados")
 
-# Aplica o estilo moderno aos cards
 style_metric_cards(
     background_color="#F9F9F9",
     border_left_color="#800040",
@@ -308,30 +307,32 @@ def format_reais(valor):
 st.markdown("---")
 st.markdown("Relatório dinâmico por instrução: Prorrogação, Desconto/Abat., Baixa de Saldo e Cancelamento. Refine a análise usando os filtros laterais.")
 
-# ========== RESUMOS DETALHADOS POR MOTIVO, FILIAL, NÍVEL 1 E NÍVEL 2 ==========
+# ========== GRÁFICOS HORIZONTAIS TOP 15 FILIAIS ==========
 st.markdown("---")
-st.subheader("Resumo Geral por Motivo, Filial, Nível 1 e Nível 2")
+st.subheader("Top 15 Filiais - Indicadores por Volume e Média")
 
-def resumo_tabela(df, valor_col, motivo_exibicao):
-    if df.empty:
-        st.info(f"Sem dados para {motivo_exibicao}.")
-        return
-    tab = df.groupby(["Divisão", "Nível 1 Descrição", "Nível 2 Descrição"]).agg(
-        Qtde=(valor_col, 'count'),
-        Soma=(valor_col, 'sum')
-    ).reset_index()
-    tab = tab.sort_values("Soma", ascending=False)
-    # Formatar soma para R$ se for valor, senão mostra inteiro
-    if valor_col in ["Desconto", "Montante"]:
-        tab["Soma"] = tab["Soma"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    st.markdown(f"#### {motivo_exibicao}")
-    st.dataframe(tab, use_container_width=True)
+col_top1, col_top2 = st.columns(2)
 
-# Prorrogação (dias)
-resumo_tabela(df_prorrog, "Dias", "Prorrogação")
-# Desconto/Abat. (desconto R$)
-resumo_tabela(df_desc_abat, "Desconto", "Desconto/Abat.")
-# Baixa de Saldo (desconto R$)
-resumo_tabela(df_baixa, "Desconto", "Baixa de Saldo")
-# Cancelamento (montante R$)
-resumo_tabela(df_cancel, "Montante", "Cancelamento")
+# 1. Top 15 - Média de Dias em Prorrogação
+with col_top1:
+    st.markdown("##### Média de Dias de Prorrogação por Filial (Top 15)")
+    df_media_prl = (
+        df_prorrog.groupby("Divisão")["Dias"].mean().reset_index().sort_values("Dias", ascending=False).head(15)
+    )
+    fig_media_prl = px.bar(
+        df_media_prl, x="Dias", y="Divisão", orientation="h",
+        title=None, labels={"Dias": "Média Dias", "Divisão": "Filial"},
+        text="Dias"
+    )
+    fig_media_prl.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
+    fig_media_prl.update_traces(marker_color="#3a75c4", texttemplate='%{text:.1f}', textposition="outside")
+    st.plotly_chart(fig_media_prl, use_container_width=True)
+
+# 2. Top 15 - Desconto/Abatimento
+with col_top2:
+    st.markdown("##### Volume de Descontos/Abat. por Filial (Top 15)")
+    df_top_desc = (
+        df_desc_abat.groupby("Divisão")["Desconto"].sum().reset_index().sort_values("Desconto", ascending=False).head(15)
+    )
+    fig_top_desc = px.bar(
+       
