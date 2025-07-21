@@ -150,81 +150,145 @@ fig_qtde.update_layout(
 )
 st.plotly_chart(fig_qtde, use_container_width=True)
 
-# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO (COM "EFEITO 3D") ====
+# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO (COM TOOLTIP DETALHADO DE NÍVEL 2) ====
 st.subheader("Distribuição por Nível 1 Descrição")
 
-# Prorrogação
+# ===== PRORROGAÇÃO (média de dias) =====
+df_tmp = df_prorrog.copy()
+df_n2 = (
+    df_tmp.groupby(["Nível 1 Descrição", "Nível 2 Descrição"])["Dias"].mean().reset_index()
+)
+def tooltip_n2_prl(nivel1):
+    fatia = df_n2[df_n2["Nível 1 Descrição"] == nivel1]
+    if fatia.empty:
+        return "-"
+    return "<br>".join([f"{n2}: {media:.1f}" for n2, media in zip(fatia["Nível 2 Descrição"], fatia["Dias"])])
+
+pizza_prl = (
+    df_prorrog.groupby("Nível 1 Descrição")
+    .size()
+    .reset_index(name="Qtde")
+    .sort_values("Qtde", ascending=False)
+)
+pizza_prl["TooltipN2"] = pizza_prl["Nível 1 Descrição"].apply(tooltip_n2_prl)
+
 col_pie1, col_pie2 = st.columns(2)
 with col_pie1:
-    pizza_prl = (
-        df_prorrog.groupby("Nível 1 Descrição")
-        .size()
-        .reset_index(name="Qtde")
-        .sort_values("Qtde", ascending=False)
-    )
     fig_pie_prl = px.pie(
         pizza_prl,
         names="Nível 1 Descrição",
         values="Qtde",
         hole=0.4,
-        title="Prorrogação"
+        title="Prorrogação",
+        custom_data=["TooltipN2"]
     )
-    fig_pie_prl.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_prl))
+    fig_pie_prl.update_traces(
+        textinfo='percent+label', pull=[0.08]*len(pizza_prl),
+        hovertemplate="<b>%{label}</b><br>Qtd: %{value}<br><br><b>Média de Dias por Nível 2:</b><br>%{customdata[0]}<extra></extra>"
+    )
     st.plotly_chart(fig_pie_prl, use_container_width=True)
 
-# Desconto/Abatimento
+# ===== DESCONTO/ABATIMENTO (soma de Desconto) =====
+df_tmp = df_desc_abat.copy()
+df_n2 = (
+    df_tmp.groupby(["Nível 1 Descrição", "Nível 2 Descrição"])["Desconto"].sum().reset_index()
+)
+def tooltip_n2_desc(nivel1):
+    fatia = df_n2[df_n2["Nível 1 Descrição"] == nivel1]
+    if fatia.empty:
+        return "-"
+    return "<br>".join([f"{n2}: R$ {soma:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for n2, soma in zip(fatia["Nível 2 Descrição"], fatia["Desconto"])])
+
+pizza_desc_abat = (
+    df_desc_abat.groupby("Nível 1 Descrição")["Desconto"]
+    .sum()
+    .reset_index()
+    .sort_values("Desconto", ascending=False)
+)
+pizza_desc_abat["TooltipN2"] = pizza_desc_abat["Nível 1 Descrição"].apply(tooltip_n2_desc)
+
 with col_pie2:
-    pizza_desc_abat = (
-        df_desc_abat.groupby("Nível 1 Descrição")["Desconto"]
-        .sum()
-        .reset_index()
-        .sort_values("Desconto", ascending=False)
-    )
     fig_pie_desc_abat = px.pie(
         pizza_desc_abat,
         names="Nível 1 Descrição",
         values="Desconto",
         hole=0.4,
-        title="Desconto/Abat."
+        title="Desconto/Abat.",
+        custom_data=["TooltipN2"]
     )
-    fig_pie_desc_abat.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_desc_abat))
+    fig_pie_desc_abat.update_traces(
+        textinfo='percent+label', pull=[0.08]*len(pizza_desc_abat),
+        hovertemplate="<b>%{label}</b><br>Soma: %{value:,.2f}<br><br><b>Nível 2:</b><br>%{customdata[0]}<extra></extra>"
+    )
     st.plotly_chart(fig_pie_desc_abat, use_container_width=True)
 
-# Baixa de Saldo
+# ===== BAIXA DE SALDO (soma de Desconto) =====
 col_pie3, col_pie4 = st.columns(2)
+df_tmp = df_baixa.copy()
+df_n2 = (
+    df_tmp.groupby(["Nível 1 Descrição", "Nível 2 Descrição"])["Desconto"].sum().reset_index()
+)
+def tooltip_n2_baixa(nivel1):
+    fatia = df_n2[df_n2["Nível 1 Descrição"] == nivel1]
+    if fatia.empty:
+        return "-"
+    return "<br>".join([f"{n2}: R$ {soma:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for n2, soma in zip(fatia["Nível 2 Descrição"], fatia["Desconto"])])
+
+pizza_baixa = (
+    df_baixa.groupby("Nível 1 Descrição")["Desconto"]
+    .sum()
+    .reset_index()
+    .sort_values("Desconto", ascending=False)
+)
+pizza_baixa["TooltipN2"] = pizza_baixa["Nível 1 Descrição"].apply(tooltip_n2_baixa)
+
 with col_pie3:
-    pizza_baixa = (
-        df_baixa.groupby("Nível 1 Descrição")["Desconto"]
-        .sum()
-        .reset_index()
-        .sort_values("Desconto", ascending=False)
-    )
     fig_pie_baixa = px.pie(
         pizza_baixa,
         names="Nível 1 Descrição",
         values="Desconto",
         hole=0.4,
-        title="Baixa de Saldo"
+        title="Baixa de Saldo",
+        custom_data=["TooltipN2"]
     )
-    fig_pie_baixa.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_baixa))
+    fig_pie_baixa.update_traces(
+        textinfo='percent+label', pull=[0.08]*len(pizza_baixa),
+        hovertemplate="<b>%{label}</b><br>Soma: %{value:,.2f}<br><br><b>Nível 2:</b><br>%{customdata[0]}<extra></extra>"
+    )
     st.plotly_chart(fig_pie_baixa, use_container_width=True)
 
-# Cancelamento
+# ===== CANCELAMENTO (soma de Montante) =====
+df_tmp = df_cancel.copy()
+df_n2 = (
+    df_tmp.groupby(["Nível 1 Descrição", "Nível 2 Descrição"])["Montante"].sum().reset_index()
+)
+def tooltip_n2_cancel(nivel1):
+    fatia = df_n2[df_n2["Nível 1 Descrição"] == nivel1]
+    if fatia.empty:
+        return "-"
+    return "<br>".join([f"{n2}: R$ {soma:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") for n2, soma in zip(fatia["Nível 2 Descrição"], fatia["Montante"])])
+
+pizza_cancel = (
+    df_cancel.groupby("Nível 1 Descrição")["Montante"]
+    .sum()
+    .reset_index()
+    .sort_values("Montante", ascending=False)
+)
+pizza_cancel["TooltipN2"] = pizza_cancel["Nível 1 Descrição"].apply(tooltip_n2_cancel)
+
 with col_pie4:
-    pizza_cancel = (
-        df_cancel.groupby("Nível 1 Descrição")["Montante"]
-        .sum()
-        .reset_index()
-        .sort_values("Montante", ascending=False)
-    )
     fig_pie_cancel = px.pie(
         pizza_cancel,
         names="Nível 1 Descrição",
         values="Montante",
         hole=0.4,
-        title="Cancelamento"
+        title="Cancelamento",
+        custom_data=["TooltipN2"]
     )
-    fig_pie_cancel.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_cancel))
+    fig_pie_cancel.update_traces(
+        textinfo='percent+label', pull=[0.08]*len(pizza_cancel),
+        hovertemplate="<b>%{label}</b><br>Soma: %{value:,.2f}<br><br><b>Nível 2:</b><br>%{customdata[0]}<extra></extra>"
+    )
     st.plotly_chart(fig_pie_cancel, use_container_width=True)
 
 # Helper para formatar coluna como reais
