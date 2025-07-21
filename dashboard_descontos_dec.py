@@ -233,3 +233,31 @@ def format_reais(valor):
 
 st.markdown("---")
 st.markdown("Relatório dinâmico por instrução: Prorrogação, Desconto/Abat., Baixa de Saldo e Cancelamento. Refine a análise usando os filtros laterais.")
+
+# ========== RESUMOS DETALHADOS POR MOTIVO, FILIAL, NÍVEL 1 E NÍVEL 2 ==========
+st.markdown("---")
+st.subheader("Resumo Geral por Motivo, Filial, Nível 1 e Nível 2")
+
+def resumo_tabela(df, valor_col, motivo_exibicao):
+    if df.empty:
+        st.info(f"Sem dados para {motivo_exibicao}.")
+        return
+    tab = df.groupby(["Divisão", "Nível 1 Descrição", "Nível 2 Descrição"]).agg(
+        Qtde=(valor_col, 'count'),
+        Soma=(valor_col, 'sum')
+    ).reset_index()
+    tab = tab.sort_values("Soma", ascending=False)
+    # Formatar soma para R$ se for valor, senão mostra inteiro
+    if valor_col in ["Desconto", "Montante"]:
+        tab["Soma"] = tab["Soma"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    st.markdown(f"#### {motivo_exibicao}")
+    st.dataframe(tab, use_container_width=True)
+
+# Prorrogação (dias)
+resumo_tabela(df_prorrog, "Dias", "Prorrogação")
+# Desconto/Abat. (desconto R$)
+resumo_tabela(df_desc_abat, "Desconto", "Desconto/Abat.")
+# Baixa de Saldo (desconto R$)
+resumo_tabela(df_baixa, "Desconto", "Baixa de Saldo")
+# Cancelamento (montante R$)
+resumo_tabela(df_cancel, "Montante", "Cancelamento")
