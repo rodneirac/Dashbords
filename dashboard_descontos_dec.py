@@ -45,7 +45,7 @@ if ano:
 if mes:
     df_filtrado = df_filtrado[df_filtrado["Mês"].isin(mes)]
 
-# Linhas para cada motivo
+# KPIs e agrupamentos de motivos
 df_prl = df_filtrado[df_filtrado["Cód.Motivo"] == "PRL"]
 df_dec = df_filtrado[df_filtrado["Cód.Motivo"] == "DEC"]
 df_alt = df_filtrado[df_filtrado["Cód.Motivo"] == "ALT"]
@@ -53,7 +53,6 @@ df_bxs = df_filtrado[df_filtrado["Cód.Motivo"] == "BXS"]
 df_can = df_filtrado[df_filtrado["Cód.Motivo"] == "CAN"]
 df_ref = df_filtrado[df_filtrado["Cód.Motivo"] == "REF"]
 
-# KPIs (cards)
 qtd_prl_card = len(df_prl) + len(df_alt)
 media_dias_prl_alt = pd.concat([df_prl, df_alt])["Dias"].mean() if not pd.concat([df_prl, df_alt]).empty else None
 qtd_dec_card = len(df_dec) + len(df_alt)
@@ -85,24 +84,42 @@ col4.metric(
 
 st.markdown("---")
 
+# GRÁFICO DE RANKING GERAL COM TOOLTIP DETALHADO POR MOTIVO
 st.subheader("Ranking de Filiais por Total de Solicitações (Todos os Motivos)")
 
-qtde_solicitacoes_geral = (
-    df_filtrado.groupby("Divisão").size().reset_index(name="Qtde_Solicitações")
+# Pivot para tooltip detalhado
+tooltip_pivot = (
+    df_filtrado
+    .pivot_table(index="Divisão", columns="Cód.Motivo", values="Data Criação", aggfunc="count", fill_value=0)
+    .reset_index()
 )
-qtde_solicitacoes_geral = qtde_solicitacoes_geral.sort_values("Qtde_Solicitações", ascending=False)
+tooltip_pivot["Qtde_Solicitações"] = tooltip_pivot.drop(columns=["Divisão"]).sum(axis=1)
 
-# Tom vinho (hex #800040)
+# Ordenar do maior para menor
+tooltip_pivot = tooltip_pivot.sort_values("Qtde_Solicitações", ascending=False)
+
+# Determinar os motivos para o tooltip
+motivos = [col for col in tooltip_pivot.columns if col not in ["Divisão", "Qtde_Solicitações"]]
+
+# Gráfico
 fig_qtde = px.bar(
-    qtde_solicitacoes_geral,
+    tooltip_pivot,
     x="Divisão",
     y="Qtde_Solicitações",
     text="Qtde_Solicitações",
     title="Ranking de Filiais por Total de Solicitações",
-    color_discrete_sequence=["#800040"]
+    color_discrete_sequence=["#800040"],
+    hover_data={m: True for m in motivos} | {"Qtde_Solicitações": True, "Divisão": True}
 )
+# Customiza tooltip
+hovertemplate = "<b>Filial:</b> %{x}<br>" \
+                "<b>Total de Solicitações:</b> %{y}<br>"
+for m in motivos:
+    hovertemplate += f"<b>{m}:</b> %{{customdata[{motivos.index(m)}]}}<br>"
 fig_qtde.update_traces(
-    texttemplate='%{text}', textposition='outside'
+    texttemplate='%{text}',
+    textposition='outside',
+    hovertemplate=hovertemplate
 )
 fig_qtde.update_layout(
     yaxis_title="Total de Solicitações",
@@ -115,9 +132,9 @@ st.plotly_chart(fig_qtde, use_container_width=True)
 # ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO ====
 st.subheader("Distribuição por Nível 1 Descrição")
 
-# Pizza PRL+ALT (quantidade de solicitações)
 col_pie1, col_pie2 = st.columns(2)
 with col_pie1:
+    df_prl_alt = pd.concat([df_prl, df_alt])
     pizza_prl_alt = (
         df_prl_alt.groupby("Nível 1 Descrição")
         .size()
@@ -133,7 +150,6 @@ with col_pie1:
     )
     st.plotly_chart(fig_pie_prl_alt, use_container_width=True)
 
-# Pizza DEC+ALT (valor de desconto)
 with col_pie2:
     df_dec_alt = pd.concat([df_dec, df_alt])
     pizza_dec_alt = (
@@ -153,7 +169,6 @@ with col_pie2:
     st.plotly_chart(fig_pie_dec_alt, use_container_width=True)
 
 col_pie3, col_pie4 = st.columns(2)
-# Pizza BXS (valor de desconto)
 with col_pie3:
     pizza_bxs = (
         df_bxs.groupby("Nível 1 Descrição")["Desconto"]
@@ -171,7 +186,6 @@ with col_pie3:
     fig_pie_bxs.update_traces(textinfo='percent+label')
     st.plotly_chart(fig_pie_bxs, use_container_width=True)
 
-# Pizza Cancelamentos (valor do montante)
 with col_pie4:
     pizza_cancel = (
         df_cancel.groupby("Nível 1 Descrição")["Montante"]
