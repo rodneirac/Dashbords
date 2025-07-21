@@ -36,6 +36,9 @@ mes_map = {calendar.month_name[m]: m for m in meses_disponiveis}
 mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes)
 mes = [mes_map[m] for m in mes_nome] if mes_nome else None
 
+motivos_disponiveis = sorted(df["Cód.Motivo"].dropna().unique())
+motivo = st.sidebar.multiselect("Motivo (Cód.Motivo)", options=motivos_disponiveis)
+
 # Filtros aplicados
 df_filtrado = df.copy()
 if filial:
@@ -44,6 +47,8 @@ if ano:
     df_filtrado = df_filtrado[df_filtrado["Ano"].isin(ano)]
 if mes:
     df_filtrado = df_filtrado[df_filtrado["Mês"].isin(mes)]
+if motivo:
+    df_filtrado = df_filtrado[df_filtrado["Cód.Motivo"].isin(motivo)]
 
 # KPIs e agrupamentos de motivos
 df_prl = df_filtrado[df_filtrado["Cód.Motivo"] == "PRL"]
@@ -64,16 +69,16 @@ qtd_cancel = len(df_cancel)
 montante_cancel = df_cancel["Montante"].sum()
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Solicitações PRL + ALT", qtd_prl_card)
-col1.metric("Média Dias PRL + ALT", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
-col2.metric("Solicitações DEC + ALT", qtd_dec_card)
+col1.metric("Solicitações Prorrogações", qtd_prl_card)
+col1.metric("Média Dias Prorrogações", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
+col2.metric("Solicitações Descontos/Abatimentos", qtd_dec_card)
 col2.metric(
-    "Desconto Total (DEC + ALT)",
+    "Desconto Total (Descontos/Abatimentos)",
     f"R$ {desconto_total_dec_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col3.metric("Solicitações BXS", qtd_bxs)
+col3.metric("Solicitações Baixas", qtd_bxs)
 col3.metric(
-    "Montante BXS",
+    "Montante Baixas",
     f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
 col4.metric("Cancelamentos (CAN + REF)", qtd_cancel)
@@ -111,9 +116,7 @@ fig_qtde = px.bar(
     color_discrete_sequence=["#800040"],
     hover_data={m: True for m in motivos} | {"Qtde_Solicitações": True, "Divisão": True}
 )
-# Customiza tooltip
-hovertemplate = "<b>Filial:</b> %{x}<br>" \
-                "<b>Total de Solicitações:</b> %{y}<br>"
+hovertemplate = "<b>Filial:</b> %{x}<br><b>Total de Solicitações:</b> %{y}<br>"
 for m in motivos:
     hovertemplate += f"<b>{m}:</b> %{{customdata[{motivos.index(m)}]}}<br>"
 fig_qtde.update_traces(
@@ -129,9 +132,10 @@ fig_qtde.update_layout(
 )
 st.plotly_chart(fig_qtde, use_container_width=True)
 
-# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO ====
+# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO (COM "EFEITO 3D") ====
 st.subheader("Distribuição por Nível 1 Descrição")
 
+# Prorrogações (PRL+ALT)
 col_pie1, col_pie2 = st.columns(2)
 with col_pie1:
     df_prl_alt = pd.concat([df_prl, df_alt])
@@ -146,10 +150,12 @@ with col_pie1:
         names="Nível 1 Descrição",
         values="Qtde",
         hole=0.4,
-        title="PRL + ALT (Qtd. Solicitações)"
+        title="Prorrogações"
     )
+    fig_pie_prl_alt.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_prl_alt))
     st.plotly_chart(fig_pie_prl_alt, use_container_width=True)
 
+# Descontos e Abatimentos (DEC+ALT)
 with col_pie2:
     df_dec_alt = pd.concat([df_dec, df_alt])
     pizza_dec_alt = (
@@ -163,11 +169,12 @@ with col_pie2:
         names="Nível 1 Descrição",
         values="Desconto",
         hole=0.4,
-        title="DEC + ALT (Desconto R$)"
+        title="Descontos e Abatimentos"
     )
-    fig_pie_dec_alt.update_traces(textinfo='percent+label')
+    fig_pie_dec_alt.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_dec_alt))
     st.plotly_chart(fig_pie_dec_alt, use_container_width=True)
 
+# Baixas (BXS)
 col_pie3, col_pie4 = st.columns(2)
 with col_pie3:
     pizza_bxs = (
@@ -181,11 +188,12 @@ with col_pie3:
         names="Nível 1 Descrição",
         values="Desconto",
         hole=0.4,
-        title="BXS (Desconto R$)"
+        title="Baixas"
     )
-    fig_pie_bxs.update_traces(textinfo='percent+label')
+    fig_pie_bxs.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_bxs))
     st.plotly_chart(fig_pie_bxs, use_container_width=True)
 
+# Cancelamentos (CAN+REF)
 with col_pie4:
     pizza_cancel = (
         df_cancel.groupby("Nível 1 Descrição")["Montante"]
@@ -198,9 +206,9 @@ with col_pie4:
         names="Nível 1 Descrição",
         values="Montante",
         hole=0.4,
-        title="Cancelamentos (Montante R$)"
+        title="Cancelamentos"
     )
-    fig_pie_cancel.update_traces(textinfo='percent+label')
+    fig_pie_cancel.update_traces(textinfo='percent+label', pull=[0.08]*len(pizza_cancel))
     st.plotly_chart(fig_pie_cancel, use_container_width=True)
 
 # Helper para formatar coluna como reais
@@ -208,7 +216,7 @@ def format_reais(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 # Tabelas e gráficos DEC + ALT
-st.subheader("Resumo DEC + ALT (por Filial e Nível 1 Descrição)")
+st.subheader("Resumo Descontos e Abatimentos (por Filial e Nível 1 Descrição)")
 tab_dec_alt = df_dec_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
@@ -218,11 +226,11 @@ tab_dec_alt["Soma_Desconto"] = tab_dec_alt["Soma_Desconto"].apply(format_reais)
 st.dataframe(tab_dec_alt, use_container_width=True)
 if not tab_dec_alt.empty:
     fig_dec_alt = px.bar(tab_dec_alt, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                         title="Solicitações DEC + ALT por Filial e Nível 1")
+                         title="Solicitações Descontos/Abatimentos por Filial e Nível 1")
     st.plotly_chart(fig_dec_alt, use_container_width=True)
 
-# Tabelas e gráficos BXS
-st.subheader("Resumo BXS (por Filial e Nível 1 Descrição)")
+# Tabelas e gráficos Baixas
+st.subheader("Resumo Baixas (por Filial e Nível 1 Descrição)")
 tab_bxs = df_bxs.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
@@ -232,7 +240,7 @@ tab_bxs["Soma_Desconto"] = tab_bxs["Soma_Desconto"].apply(format_reais)
 st.dataframe(tab_bxs, use_container_width=True)
 if not tab_bxs.empty:
     fig_bxs = px.bar(tab_bxs, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                     title="Solicitações BXS por Filial e Nível 1")
+                     title="Solicitações Baixas por Filial e Nível 1")
     st.plotly_chart(fig_bxs, use_container_width=True)
 
 # Tabelas e gráficos Cancelamentos
@@ -250,4 +258,4 @@ if not tab_cancel.empty:
     st.plotly_chart(fig_cancel, use_container_width=True)
 
 st.markdown("---")
-st.markdown("Relatório dinâmico por instrução: PRL (prorrogação), ALT (alteração), DEC (desconto), BXS (baixa) e Cancelamentos (CAN/REF). Refine a análise usando os filtros laterais.")
+st.markdown("Relatório dinâmico por instrução: Prorrogações, Descontos/Abatimentos, Baixas e Cancelamentos. Refine a análise usando os filtros laterais.")
