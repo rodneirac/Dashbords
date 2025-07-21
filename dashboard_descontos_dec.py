@@ -3,6 +3,7 @@ import plotly.express as px
 import streamlit as st
 from PIL import Image
 import calendar
+from streamlit_extras.metric_cards import style_metric_cards
 
 st.set_page_config(page_title="Análise Instruções Bancárias", layout="wide")
 
@@ -88,23 +89,32 @@ desconto_total_bxs = df_baixa["Desconto"].sum() if not df_baixa.empty else 0
 qtd_cancel = len(df_cancel)
 montante_cancel = df_cancel["Montante"].sum() if not df_cancel.empty else 0
 
+# ==== CARDS MODERNOS COM STREAMLIT-EXTRAS ====
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Solicitações Prorrogação", qtd_prl_card)
-col1.metric("Média Dias Prorrogação", f"{media_dias_prl:.1f}" if media_dias_prl else "-")
-col2.metric("Solicitações Desconto/Abat.", qtd_desc_card)
-col2.metric(
-    "Desconto Total (Desconto/Abat.)",
-    f"R$ {desconto_total_dec_abat:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-)
-col3.metric("Solicitações Baixa de Saldo", qtd_bxs)
-col3.metric(
-    "Montante Baixa de Saldo",
-    f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-)
-col4.metric("Cancelamentos", qtd_cancel)
-col4.metric(
-    "Montante Cancelado",
-    f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+with col1:
+    st.markdown("### ⏳ Prorrogação")
+    st.metric("Solicitações", qtd_prl_card, help="Total de solicitações de prorrogação")
+    st.metric("Média Dias", f"{media_dias_prl:.1f}" if media_dias_prl else "-", help="Média de dias das prorrogações")
+with col2:
+    st.markdown("### 💰 Desconto/Abat.")
+    st.metric("Solicitações", qtd_desc_card, help="Total de solicitações de desconto/abatimento")
+    st.metric("Desconto Total", f"R$ {desconto_total_dec_abat:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), help="Soma dos descontos concedidos")
+with col3:
+    st.markdown("### 🏦 Baixa de Saldo")
+    st.metric("Solicitações", qtd_bxs, help="Total de baixas de saldo")
+    st.metric("Montante", f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), help="Soma dos valores baixados")
+with col4:
+    st.markdown("### ❌ Cancelamentos")
+    st.metric("Solicitações", qtd_cancel, help="Total de cancelamentos")
+    st.metric("Montante", f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), help="Soma dos valores cancelados")
+
+# Aplica o estilo moderno aos cards
+style_metric_cards(
+    background_color="#F9F9F9",
+    border_left_color="#800040",
+    border_color="#DDD",
+    border_radius_px=12,
+    box_shadow=True
 )
 
 st.markdown("---")
@@ -149,6 +159,9 @@ fig_qtde.update_layout(
     uniformtext_mode='hide'
 )
 st.plotly_chart(fig_qtde, use_container_width=True)
+
+# ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO (COM TOOLTIP DETALHADO DE NÍVEL 2) ====
+st.subheader("Distribuição por Nível 1 Descrição")
 
 # ===== PRORROGAÇÃO (Qtde de solicitações) =====
 df_tmp = df_prorrog.copy()
