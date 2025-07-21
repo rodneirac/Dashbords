@@ -54,7 +54,7 @@ if ano:
 if mes:
     df_filtrado = df_filtrado[df_filtrado["Mês"].isin(mes)]
 
-# Funções auxiliares
+# Funções auxiliares para KPIs
 def resumo_kpi(df, motivo, kpi_dias=False, kpi_valor=False):
     dados = df[df["Cód.Motivo"] == motivo].copy()
     qtd = len(dados)
@@ -72,10 +72,14 @@ col1.metric("Média Dias PRL", f"{media_dias_prl:.1f}" if media_dias_prl else "-
 qtd_alt, media_dias_alt, _ = resumo_kpi(df_filtrado, "ALT", kpi_dias=True)
 col2.metric("Solicitações ALT", qtd_alt)
 col2.metric("Média Dias ALT", f"{media_dias_alt:.1f}" if media_dias_alt else "-")
-# DEC
-qtd_dec, _, soma_dec = resumo_kpi(df_filtrado, "DEC", kpi_valor=True)
+# DEC + ALT Desconto
+desconto_total_dec_alt = df_filtrado[df_filtrado["Cód.Motivo"].isin(["DEC", "ALT"])]["Desconto"].sum()
+qtd_dec, _, _ = resumo_kpi(df_filtrado, "DEC")
 col3.metric("Solicitações DEC", qtd_dec)
-col3.metric("Desconto Total DEC", f"R$ {soma_dec:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+col3.metric(
+    "Desconto Total (DEC + ALT)",
+    f"R$ {desconto_total_dec_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+)
 
 st.markdown("---")
 
