@@ -3,10 +3,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image
-from io import BytesIO
 import calendar
 
-st.set_page_config(page_title="Dashboard - Descontos DEC", layout="wide")
+st.set_page_config(page_title="Dashboard - Monitoramento Instruções", layout="wide")
 
 # Exibe logomarca centralizada ao lado do título
 col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
@@ -18,101 +17,107 @@ with col_logo2:
 st.sidebar.title("📤 Upload de Planilha")
 uploaded_file = st.sidebar.file_uploader("Envie a planilha .xlsx atualizada:", type=["xlsx"])
 
-# Lê o arquivo enviado ou usa padrão
+# Nome padrão da planilha no GitHub ou local
+FILE_DEFAULT = "DADOSATUAL.XLSX"
+
 if uploaded_file:
     df = pd.read_excel(uploaded_file)
     st.sidebar.success("Arquivo carregado com sucesso!")
 else:
-    st.sidebar.warning("Usando planilha padrão: EXPORT_20250604_114410.XLSX")
-    df = pd.read_excel("EXPORT_20250604_114410.XLSX")
+    st.sidebar.warning(f"Usando planilha padrão: {FILE_DEFAULT}")
+    df = pd.read_excel(FILE_DEFAULT)
 
-# Filtrar somente motivo DEC
-df = df[df["Cód.Motivo"] == "DEC"].copy()
-
-# Preparo de colunas
+# Preparo de colunas (datas, anos, meses)
 if df["Data Criação"].dtype != 'datetime64[ns]':
     df["Data Criação"] = pd.to_datetime(df["Data Criação"])
 df["Ano"] = df["Data Criação"].dt.year
 df["Mês"] = df["Data Criação"].dt.month
 
-# Sidebar
+# Sidebar de filtros
 st.sidebar.title("📊 Filtros de Análise")
-filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].dropna().unique()), default=None)
-ano = st.sidebar.multiselect("Ano", options=sorted(df["Ano"].dropna().unique()), default=None)
-
-# Filtro dependente de mês baseado no ano
-if ano:
-    meses_disponiveis = df[df["Ano"].isin(ano)]["Mês"].dropna().unique()
-else:
-    meses_disponiveis = df["Mês"].dropna().unique()
-
+filial = st.sidebar.multiselect("Filial (Divisão)", options=sorted(df["Divisão"].dropna().unique()))
+ano = st.sidebar.multiselect("Ano", options=sorted(df["Ano"].dropna().unique()))
+meses_disponiveis = df["Mês"].dropna().unique() if not ano else df[df["Ano"].isin(ano)]["Mês"].dropna().unique()
 meses_disponiveis = [int(m) for m in meses_disponiveis if pd.notna(m)]
 meses_disponiveis.sort()
 mes_nomes = [calendar.month_name[m] for m in meses_disponiveis]
 mes_map = {calendar.month_name[m]: m for m in meses_disponiveis}
-mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes, default=None)
+mes_nome = st.sidebar.multiselect("Mês", options=mes_nomes)
 mes = [mes_map[m] for m in mes_nome] if mes_nome else None
 
-situacao = st.sidebar.multiselect("Situação (coluna W)", options=sorted(df[df.columns[22]].dropna().unique()), default=None)
-
-# Aplicar filtros
+# Filtros aplicados
+df_filtrado = df.copy()
 if filial:
-    df = df[df["Divisão"].isin(filial)]
+    df_filtrado = df_filtrado[df_filtrado["Divisão"].isin(filial)]
 if ano:
-    df = df[df["Ano"].isin(ano)]
+    df_filtrado = df_filtrado[df_filtrado["Ano"].isin(ano)]
 if mes:
-    df = df[df["Mês"].isin(mes)]
-if situacao:
-    df = df[df[df.columns[22]].isin(situacao)]
+    df_filtrado = df_filtrado[df_filtrado["Mês"].isin(mes)]
 
-# KPIs
-total_desconto = df["Desconto"].sum()
-total_solicitacoes = len(df)
-total_filiais = df["Divisão"].nunique()
+# Funções auxiliares
+def resumo_kpi(df, motivo, kpi_dias=False, kpi_valor=False):
+    dados = df[df["Cód.Motivo"] == motivo].copy()
+    qtd = len(dados)
+    media_dias = dados["Dias"].mean() if kpi_dias else None
+    soma_valor = dados["Desconto"].sum() if kpi_valor else None
+    return qtd, media_dias, soma_valor
 
-# Título
-st.title("Dashboard Interativo - Descontos Motivo DEC")
-st.markdown("---")
-
-# KPIs
+# KPIs principais (cards)
 col1, col2, col3 = st.columns(3)
-col1.metric("Desconto Total", f"R$ {total_desconto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-col2.metric("Solicitações", total_solicitacoes)
-col3.metric("Filiais Envolvidas", total_filiais)
-
-# Gráfico de barras - Desconto por filial
-st.subheader("Desconto Total por Filial")
-fig_filial = px.bar(df.groupby("Divisão")["Desconto"].sum().reset_index().sort_values("Desconto", ascending=False),
-                    x="Divisão", y="Desconto", text_auto=True)
-st.plotly_chart(fig_filial, use_container_width=True)
-
-# Linha do tempo - Evolução mensal
-df["Mês/Ano"] = pd.to_datetime(df["Data Criação"].dt.to_period("M").astype(str))
-df_mensal = df.groupby("Mês/Ano")["Desconto"].sum().reset_index()
-df_mensal = df_mensal.sort_values("Mês/Ano")
-
-st.subheader("Evolução Mensal dos Descontos")
-fig_mensal = go.Figure()
-fig_mensal.add_trace(go.Bar(x=df_mensal["Mês/Ano"], y=df_mensal["Desconto"], name="Desconto"))
-fig_mensal.add_trace(go.Scatter(x=df_mensal["Mês/Ano"], y=df_mensal["Desconto"].rolling(3).mean(),
-                                mode='lines+markers', name="Média Móvel 3 meses", line=dict(color='orange')))
-fig_mensal.update_layout(xaxis_title="Mês/Ano", yaxis_title="Desconto", hovermode="x unified")
-st.plotly_chart(fig_mensal, use_container_width=True)
-
-# Pizza - Nível 1
-st.subheader("Distribuição por Nível 1")
-fig_n1 = px.pie(df, names="Nível 1 Descrição", values="Desconto", hole=0.4)
-st.plotly_chart(fig_n1, use_container_width=True)
-
-# Tabela por motivo detalhado
-st.subheader("Tabela por Nível 1 + Nível 2")
-tab_motivo = df.groupby(["Nível 1 Descrição", "Nível 2 Descrição"])["Desconto"].sum().reset_index().sort_values("Desconto", ascending=False)
-st.dataframe(tab_motivo, use_container_width=True)
-
-# Ranking por usuário
-st.subheader("Ranking de Usuários")
-rk_user = df.groupby("Usuário")["Desconto"].sum().reset_index().sort_values("Desconto", ascending=False)
-st.dataframe(rk_user, use_container_width=True)
+# PRL
+qtd_prl, media_dias_prl, _ = resumo_kpi(df_filtrado, "PRL", kpi_dias=True)
+col1.metric("Solicitações PRL", qtd_prl)
+col1.metric("Média Dias PRL", f"{media_dias_prl:.1f}" if media_dias_prl else "-")
+# ALT
+qtd_alt, media_dias_alt, _ = resumo_kpi(df_filtrado, "ALT", kpi_dias=True)
+col2.metric("Solicitações ALT", qtd_alt)
+col2.metric("Média Dias ALT", f"{media_dias_alt:.1f}" if media_dias_alt else "-")
+# DEC
+qtd_dec, _, soma_dec = resumo_kpi(df_filtrado, "DEC", kpi_valor=True)
+col3.metric("Solicitações DEC", qtd_dec)
+col3.metric("Desconto Total DEC", f"R$ {soma_dec:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
 st.markdown("---")
-st.markdown("Relatório dinâmico criado via Streamlit. Para análise completa, aplique filtros na barra lateral.")
+
+# Tabelas e gráficos por filial e nível 1
+
+st.subheader("Resumo PRL (por Filial e Nível 1 Descrição)")
+df_prl = df_filtrado[df_filtrado["Cód.Motivo"] == "PRL"]
+tab_prl = df_prl.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+    Qtde=('Dias', 'count'),
+    Soma_Dias=('Dias', 'sum'),
+    Media_Dias=('Dias', 'mean')
+).reset_index()
+st.dataframe(tab_prl, use_container_width=True)
+if not tab_prl.empty:
+    fig_prl = px.bar(tab_prl, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                     title="Solicitações PRL por Filial e Nível 1")
+    st.plotly_chart(fig_prl, use_container_width=True)
+
+st.subheader("Resumo ALT (por Filial e Nível 1 Descrição)")
+df_alt = df_filtrado[df_filtrado["Cód.Motivo"] == "ALT"]
+tab_alt = df_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+    Qtde=('Dias', 'count'),
+    Soma_Dias=('Dias', 'sum'),
+    Media_Dias=('Dias', 'mean')
+).reset_index()
+st.dataframe(tab_alt, use_container_width=True)
+if not tab_alt.empty:
+    fig_alt = px.bar(tab_alt, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                     title="Solicitações ALT por Filial e Nível 1")
+    st.plotly_chart(fig_alt, use_container_width=True)
+
+st.subheader("Resumo DEC (por Filial e Nível 1 Descrição)")
+df_dec = df_filtrado[df_filtrado["Cód.Motivo"] == "DEC"]
+tab_dec = df_dec.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+    Qtde=('Desconto', 'count'),
+    Soma_Desconto=('Desconto', 'sum')
+).reset_index()
+st.dataframe(tab_dec, use_container_width=True)
+if not tab_dec.empty:
+    fig_dec = px.bar(tab_dec, x="Divisão", y="Soma_Desconto", color="Nível 1 Descrição", barmode="group",
+                     title="Desconto DEC por Filial e Nível 1")
+    st.plotly_chart(fig_dec, use_container_width=True)
+
+st.markdown("---")
+st.markdown("Relatório dinâmico por instrução: PRL (prorrogação), ALT (alteração) e DEC (desconto). Refine a análise usando os filtros laterais.")
