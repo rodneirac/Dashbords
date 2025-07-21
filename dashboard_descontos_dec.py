@@ -49,6 +49,7 @@ if mes:
 df_prl = df_filtrado[df_filtrado["Cód.Motivo"] == "PRL"]
 df_dec = df_filtrado[df_filtrado["Cód.Motivo"] == "DEC"]
 df_alt = df_filtrado[df_filtrado["Cód.Motivo"] == "ALT"]
+df_bxs = df_filtrado[df_filtrado["Cód.Motivo"] == "BXS"]
 
 # KPIs (cards)
 # Solicitações PRL: PRL + ALT
@@ -58,14 +59,22 @@ media_dias_prl_alt = pd.concat([df_prl, df_alt])["Dias"].mean() if not pd.concat
 qtd_dec_card = len(df_dec) + len(df_alt)
 # Desconto Total (DEC + ALT)
 desconto_total_dec_alt = pd.concat([df_dec, df_alt])["Desconto"].sum()
+# BXS
+qtd_bxs = len(df_bxs)
+desconto_total_bxs = df_bxs["Desconto"].sum()
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 col1.metric("Solicitações PRL + ALT", qtd_prl_card)
 col1.metric("Média Dias PRL + ALT", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
 col2.metric("Solicitações DEC + ALT", qtd_dec_card)
 col2.metric(
     "Desconto Total (DEC + ALT)",
     f"R$ {desconto_total_dec_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+)
+col3.metric("Solicitações BXS", qtd_bxs)
+col3.metric(
+    "Montante BXS",
+    f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
 
 st.markdown("---")
@@ -97,5 +106,16 @@ if not tab_dec_alt.empty:
                          title="Desconto DEC + ALT por Filial e Nível 1")
     st.plotly_chart(fig_dec_alt, use_container_width=True)
 
+st.subheader("Resumo BXS (por Filial e Nível 1 Descrição)")
+tab_bxs = df_bxs.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+    Qtde=('Desconto', 'count'),
+    Soma_Desconto=('Desconto', 'sum')
+).reset_index()
+st.dataframe(tab_bxs, use_container_width=True)
+if not tab_bxs.empty:
+    fig_bxs = px.bar(tab_bxs, x="Divisão", y="Soma_Desconto", color="Nível 1 Descrição", barmode="group",
+                     title="Montante BXS por Filial e Nível 1")
+    st.plotly_chart(fig_bxs, use_container_width=True)
+
 st.markdown("---")
-st.markdown("Relatório dinâmico por instrução: PRL (prorrogação), ALT (alteração) e DEC (desconto). Refine a análise usando os filtros laterais.")
+st.markdown("Relatório dinâmico por instrução: PRL (prorrogação), ALT (alteração), DEC (desconto) e BXS (baixa). Refine a análise usando os filtros laterais.")
