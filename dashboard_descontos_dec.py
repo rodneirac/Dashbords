@@ -54,17 +54,12 @@ df_can = df_filtrado[df_filtrado["Cód.Motivo"] == "CAN"]
 df_ref = df_filtrado[df_filtrado["Cód.Motivo"] == "REF"]
 
 # KPIs (cards)
-# Solicitações PRL: PRL + ALT
 qtd_prl_card = len(df_prl) + len(df_alt)
 media_dias_prl_alt = pd.concat([df_prl, df_alt])["Dias"].mean() if not pd.concat([df_prl, df_alt]).empty else None
-# Solicitações DEC: DEC + ALT
 qtd_dec_card = len(df_dec) + len(df_alt)
-# Desconto Total (DEC + ALT)
 desconto_total_dec_alt = pd.concat([df_dec, df_alt])["Desconto"].sum()
-# BXS
 qtd_bxs = len(df_bxs)
 desconto_total_bxs = df_bxs["Desconto"].sum()
-# Cancelamento (CAN + REF)
 df_cancel = pd.concat([df_can, df_ref])
 qtd_cancel = len(df_cancel)
 montante_cancel = df_cancel["Montante"].sum()
@@ -90,8 +85,11 @@ col4.metric(
 
 st.markdown("---")
 
-# Tabelas e gráficos por filial e nível 1
+# Helper para formatar coluna como reais
+def format_reais(valor):
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+# Tabelas e gráficos PRL + ALT
 st.subheader("Resumo PRL + ALT (por Filial e Nível 1 Descrição)")
 df_prl_alt = pd.concat([df_prl, df_alt])
 tab_prl_alt = df_prl_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
@@ -99,44 +97,58 @@ tab_prl_alt = df_prl_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Soma_Dias=('Dias', 'sum'),
     Media_Dias=('Dias', 'mean')
 ).reset_index()
+# Ordenar do maior para o menor soma_dias
+tab_prl_alt = tab_prl_alt.sort_values("Soma_Dias", ascending=False)
+# Formatar valores
+tab_prl_alt["Soma_Dias"] = tab_prl_alt["Soma_Dias"].apply(lambda x: f"{x:.0f}")
+tab_prl_alt["Media_Dias"] = tab_prl_alt["Media_Dias"].apply(lambda x: f"{x:.1f}")
 st.dataframe(tab_prl_alt, use_container_width=True)
 if not tab_prl_alt.empty:
     fig_prl_alt = px.bar(tab_prl_alt, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
                          title="Solicitações PRL + ALT por Filial e Nível 1")
     st.plotly_chart(fig_prl_alt, use_container_width=True)
 
+# Tabelas e gráficos DEC + ALT
 st.subheader("Resumo DEC + ALT (por Filial e Nível 1 Descrição)")
 df_dec_alt = pd.concat([df_dec, df_alt])
 tab_dec_alt = df_dec_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
 ).reset_index()
+tab_dec_alt = tab_dec_alt.sort_values("Soma_Desconto", ascending=False)
+tab_dec_alt["Soma_Desconto"] = tab_dec_alt["Soma_Desconto"].apply(format_reais)
 st.dataframe(tab_dec_alt, use_container_width=True)
 if not tab_dec_alt.empty:
-    fig_dec_alt = px.bar(tab_dec_alt, x="Divisão", y="Soma_Desconto", color="Nível 1 Descrição", barmode="group",
-                         title="Desconto DEC + ALT por Filial e Nível 1")
+    fig_dec_alt = px.bar(tab_dec_alt, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                         title="Solicitações DEC + ALT por Filial e Nível 1")
     st.plotly_chart(fig_dec_alt, use_container_width=True)
 
+# Tabelas e gráficos BXS
 st.subheader("Resumo BXS (por Filial e Nível 1 Descrição)")
 tab_bxs = df_bxs.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Desconto', 'count'),
     Soma_Desconto=('Desconto', 'sum')
 ).reset_index()
+tab_bxs = tab_bxs.sort_values("Soma_Desconto", ascending=False)
+tab_bxs["Soma_Desconto"] = tab_bxs["Soma_Desconto"].apply(format_reais)
 st.dataframe(tab_bxs, use_container_width=True)
 if not tab_bxs.empty:
-    fig_bxs = px.bar(tab_bxs, x="Divisão", y="Soma_Desconto", color="Nível 1 Descrição", barmode="group",
-                     title="Montante BXS por Filial e Nível 1")
+    fig_bxs = px.bar(tab_bxs, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                     title="Solicitações BXS por Filial e Nível 1")
     st.plotly_chart(fig_bxs, use_container_width=True)
 
+# Tabelas e gráficos Cancelamentos
 st.subheader("Resumo Cancelamentos (CAN + REF) (por Filial e Nível 1 Descrição)")
 tab_cancel = df_cancel.groupby(["Divisão", "Nível 1 Descrição"]).agg(
     Qtde=('Montante', 'count'),
     Soma_Montante=('Montante', 'sum')
 ).reset_index()
+tab_cancel = tab_cancel.sort_values("Soma_Montante", ascending=False)
+tab_cancel["Soma_Montante"] = tab_cancel["Soma_Montante"].apply(format_reais)
 st.dataframe(tab_cancel, use_container_width=True)
 if not tab_cancel.empty:
-    fig_cancel = px.bar(tab_cancel, x="Divisão", y="Soma_Montante", color="Nível 1 Descrição", barmode="group",
-                        title="Montante Cancelado por Filial e Nível 1")
+    fig_cancel = px.bar(tab_cancel, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
+                        title="Solicitações Canceladas por Filial e Nível 1")
     st.plotly_chart(fig_cancel, use_container_width=True)
 
 st.markdown("---")
