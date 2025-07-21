@@ -65,19 +65,19 @@ qtd_cancel = len(df_cancel)
 montante_cancel = df_cancel["Montante"].sum()
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Solicitações Prorrogações", qtd_prl_card)
-col1.metric("Média de dias Prorrogações", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
-col2.metric("Solicitações Desc/Abatimentos", qtd_dec_card)
+col1.metric("Solicitações PRL + ALT", qtd_prl_card)
+col1.metric("Média Dias PRL + ALT", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
+col2.metric("Solicitações DEC + ALT", qtd_dec_card)
 col2.metric(
-    "Montante de Desc/Abatimentos",
+    "Desconto Total (DEC + ALT)",
     f"R$ {desconto_total_dec_alt:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col3.metric("Solicitações Baixas", qtd_bxs)
+col3.metric("Solicitações BXS", qtd_bxs)
 col3.metric(
-    "Montante de Baixas",
+    "Montante BXS",
     f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
-col4.metric("Solicitações de Cancelamentos)", qtd_cancel)
+col4.metric("Cancelamentos (CAN + REF)", qtd_cancel)
 col4.metric(
     "Montante Cancelado",
     f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -85,28 +85,42 @@ col4.metric(
 
 st.markdown("---")
 
+# GRÁFICO: Média de Dias por Filial + Tooltip de Quantidade de Solicitações
+st.subheader("Média de Dias das Solicitações PRL + ALT por Filial")
+
+df_prl_alt = pd.concat([df_prl, df_alt])
+media_dias_qtde_filial = (
+    df_prl_alt.groupby("Divisão").agg(
+        Media_Dias=('Dias', 'mean'),
+        Qtde=('Dias', 'count')
+    ).reset_index()
+)
+media_dias_qtde_filial = media_dias_qtde_filial.sort_values("Media_Dias", ascending=False)
+media_dias_qtde_filial["Media_Dias"] = media_dias_qtde_filial["Media_Dias"].round(1)
+
+fig_media_dias = px.bar(
+    media_dias_qtde_filial,
+    x="Divisão",
+    y="Media_Dias",
+    text="Media_Dias",
+    title="Média de Dias das Solicitações PRL + ALT por Filial",
+    hover_data={"Qtde": True, "Media_Dias": True, "Divisão": True}
+)
+fig_media_dias.update_traces(
+    texttemplate='%{text:.1f}', textposition='outside',
+    hovertemplate="<b>Filial:</b> %{x}<br><b>Média de Dias:</b> %{y}<br><b>Qtd Solicitações:</b> %{customdata[0]}"
+)
+fig_media_dias.update_layout(
+    yaxis_title="Média de Dias",
+    xaxis_title="Filial",
+    uniformtext_minsize=8,
+    uniformtext_mode='hide'
+)
+st.plotly_chart(fig_media_dias, use_container_width=True)
+
 # Helper para formatar coluna como reais
 def format_reais(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-# Tabelas e gráficos PRL + ALT
-st.subheader("Resumo PRL + ALT (por Filial e Nível 1 Descrição)")
-df_prl_alt = pd.concat([df_prl, df_alt])
-tab_prl_alt = df_prl_alt.groupby(["Divisão", "Nível 1 Descrição"]).agg(
-    Qtde=('Dias', 'count'),
-    Soma_Dias=('Dias', 'sum'),
-    Media_Dias=('Dias', 'mean')
-).reset_index()
-# Ordenar do maior para o menor soma_dias
-tab_prl_alt = tab_prl_alt.sort_values("Soma_Dias", ascending=False)
-# Formatar valores
-tab_prl_alt["Soma_Dias"] = tab_prl_alt["Soma_Dias"].apply(lambda x: f"{x:.0f}")
-tab_prl_alt["Media_Dias"] = tab_prl_alt["Media_Dias"].apply(lambda x: f"{x:.1f}")
-st.dataframe(tab_prl_alt, use_container_width=True)
-if not tab_prl_alt.empty:
-    fig_prl_alt = px.bar(tab_prl_alt, x="Divisão", y="Qtde", color="Nível 1 Descrição", barmode="group",
-                         title="Solicitações PRL + ALT por Filial e Nível 1")
-    st.plotly_chart(fig_prl_alt, use_container_width=True)
 
 # Tabelas e gráficos DEC + ALT
 st.subheader("Resumo DEC + ALT (por Filial e Nível 1 Descrição)")
