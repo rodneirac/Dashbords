@@ -50,6 +50,8 @@ df_prl = df_filtrado[df_filtrado["Cód.Motivo"] == "PRL"]
 df_dec = df_filtrado[df_filtrado["Cód.Motivo"] == "DEC"]
 df_alt = df_filtrado[df_filtrado["Cód.Motivo"] == "ALT"]
 df_bxs = df_filtrado[df_filtrado["Cód.Motivo"] == "BXS"]
+df_can = df_filtrado[df_filtrado["Cód.Motivo"] == "CAN"]
+df_ref = df_filtrado[df_filtrado["Cód.Motivo"] == "REF"]
 
 # KPIs (cards)
 # Solicitações PRL: PRL + ALT
@@ -62,8 +64,12 @@ desconto_total_dec_alt = pd.concat([df_dec, df_alt])["Desconto"].sum()
 # BXS
 qtd_bxs = len(df_bxs)
 desconto_total_bxs = df_bxs["Desconto"].sum()
+# Cancelamento (CAN + REF)
+df_cancel = pd.concat([df_can, df_ref])
+qtd_cancel = len(df_cancel)
+montante_cancel = df_cancel["Montante"].sum()
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("Solicitações PRL + ALT", qtd_prl_card)
 col1.metric("Média Dias PRL + ALT", f"{media_dias_prl_alt:.1f}" if media_dias_prl_alt else "-")
 col2.metric("Solicitações DEC + ALT", qtd_dec_card)
@@ -75,6 +81,11 @@ col3.metric("Solicitações BXS", qtd_bxs)
 col3.metric(
     "Montante BXS",
     f"R$ {desconto_total_bxs:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+)
+col4.metric("Cancelamentos (CAN + REF)", qtd_cancel)
+col4.metric(
+    "Montante Cancelado",
+    f"R$ {montante_cancel:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 )
 
 st.markdown("---")
@@ -117,5 +128,16 @@ if not tab_bxs.empty:
                      title="Montante BXS por Filial e Nível 1")
     st.plotly_chart(fig_bxs, use_container_width=True)
 
+st.subheader("Resumo Cancelamentos (CAN + REF) (por Filial e Nível 1 Descrição)")
+tab_cancel = df_cancel.groupby(["Divisão", "Nível 1 Descrição"]).agg(
+    Qtde=('Montante', 'count'),
+    Soma_Montante=('Montante', 'sum')
+).reset_index()
+st.dataframe(tab_cancel, use_container_width=True)
+if not tab_cancel.empty:
+    fig_cancel = px.bar(tab_cancel, x="Divisão", y="Soma_Montante", color="Nível 1 Descrição", barmode="group",
+                        title="Montante Cancelado por Filial e Nível 1")
+    st.plotly_chart(fig_cancel, use_container_width=True)
+
 st.markdown("---")
-st.markdown("Relatório dinâmico por instrução: PRL (prorrogação), ALT (alteração), DEC (desconto) e BXS (baixa). Refine a análise usando os filtros laterais.")
+st.markdown("Relatório dinâmico por instrução: PRL (prorrogação), ALT (alteração), DEC (desconto), BXS (baixa) e Cancelamentos (CAN/REF). Refine a análise usando os filtros laterais.")
