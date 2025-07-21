@@ -85,38 +85,32 @@ col4.metric(
 
 st.markdown("---")
 
-# GRÁFICO: Média de Dias por Filial + Tooltip de Quantidade de Solicitações
-st.subheader("Média de Dias das Solicitações PRL + ALT por Filial")
+st.subheader("Ranking de Filiais por Total de Solicitações (Todos os Motivos)")
 
-df_prl_alt = pd.concat([df_prl, df_alt])
-media_dias_qtde_filial = (
-    df_prl_alt.groupby("Divisão").agg(
-        Media_Dias=('Dias', 'mean'),
-        Qtde=('Dias', 'count')
-    ).reset_index()
+qtde_solicitacoes_geral = (
+    df_filtrado.groupby("Divisão").size().reset_index(name="Qtde_Solicitações")
 )
-media_dias_qtde_filial = media_dias_qtde_filial.sort_values("Media_Dias", ascending=False)
-media_dias_qtde_filial["Media_Dias"] = media_dias_qtde_filial["Media_Dias"].round(1)
+qtde_solicitacoes_geral = qtde_solicitacoes_geral.sort_values("Qtde_Solicitações", ascending=False)
 
-fig_media_dias = px.bar(
-    media_dias_qtde_filial,
+# Tom vinho (hex #800040)
+fig_qtde = px.bar(
+    qtde_solicitacoes_geral,
     x="Divisão",
-    y="Media_Dias",
-    text="Media_Dias",
-    title="Média de Dias das Solicitações PRL + ALT por Filial",
-    hover_data={"Qtde": True, "Media_Dias": True, "Divisão": True}
+    y="Qtde_Solicitações",
+    text="Qtde_Solicitações",
+    title="Ranking de Filiais por Total de Solicitações",
+    color_discrete_sequence=["#800040"]
 )
-fig_media_dias.update_traces(
-    texttemplate='%{text:.1f}', textposition='outside',
-    hovertemplate="<b>Filial:</b> %{x}<br><b>Média de Dias:</b> %{y}<br><b>Qtd Solicitações:</b> %{customdata[0]}"
+fig_qtde.update_traces(
+    texttemplate='%{text}', textposition='outside'
 )
-fig_media_dias.update_layout(
-    yaxis_title="Média de Dias",
+fig_qtde.update_layout(
+    yaxis_title="Total de Solicitações",
     xaxis_title="Filial",
     uniformtext_minsize=8,
     uniformtext_mode='hide'
 )
-st.plotly_chart(fig_media_dias, use_container_width=True)
+st.plotly_chart(fig_qtde, use_container_width=True)
 
 # ==== GRÁFICOS DE PIZZA POR NÍVEL 1 DESCRIÇÃO ====
 st.subheader("Distribuição por Nível 1 Descrição")
