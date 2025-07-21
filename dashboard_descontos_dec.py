@@ -307,7 +307,6 @@ def format_reais(valor):
 st.markdown("---")
 st.markdown("Relatório dinâmico por instrução: Prorrogação, Desconto/Abat., Baixa de Saldo e Cancelamento. Refine a análise usando os filtros laterais.")
 
-# ========== GRÁFICOS HORIZONTAIS TOP 15 FILIAIS ==========
 st.markdown("---")
 st.subheader("Top 15 Filiais - Indicadores por Volume e Média")
 
@@ -317,22 +316,108 @@ col_top1, col_top2 = st.columns(2)
 with col_top1:
     st.markdown("##### Média de Dias de Prorrogação por Filial (Top 15)")
     df_media_prl = (
-        df_prorrog.groupby("Divisão")["Dias"].mean().reset_index().sort_values("Dias", ascending=False).head(15)
+        df_prorrog.groupby("Divisão")["Dias"]
+        .mean()
+        .reset_index()
+        .sort_values("Dias", ascending=False)
+        .head(15)
     )
     fig_media_prl = px.bar(
         df_media_prl, x="Dias", y="Divisão", orientation="h",
-        title=None, labels={"Dias": "Média Dias", "Divisão": "Filial"},
+        labels={"Dias": "Média Dias", "Divisão": "Filial"},
         text="Dias"
     )
-    fig_media_prl.update_layout(yaxis={'categoryorder':'total ascending'}, height=500)
-    fig_media_prl.update_traces(marker_color="#3a75c4", texttemplate='%{text:.1f}', textposition="outside")
+    fig_media_prl.update_layout(
+        yaxis={'categoryorder':'total ascending'},
+        height=500,
+        margin=dict(l=50, r=30, t=30, b=30),
+        showlegend=False
+    )
+    fig_media_prl.update_traces(
+        marker_color="#3a75c4",
+        texttemplate='%{text:.1f}', textposition="outside"
+    )
     st.plotly_chart(fig_media_prl, use_container_width=True)
 
 # 2. Top 15 - Desconto/Abatimento
 with col_top2:
     st.markdown("##### Volume de Descontos/Abat. por Filial (Top 15)")
     df_top_desc = (
-        df_desc_abat.groupby("Divisão")["Desconto"].sum().reset_index().sort_values("Desconto", ascending=False).head(15)
+        df_desc_abat.groupby("Divisão")["Desconto"]
+        .sum()
+        .reset_index()
+        .sort_values("Desconto", ascending=False)
+        .head(15)
     )
     fig_top_desc = px.bar(
-       
+        df_top_desc, x="Desconto", y="Divisão", orientation="h",
+        labels={"Desconto": "Volume R$", "Divisão": "Filial"},
+        text="Desconto"
+    )
+    fig_top_desc.update_layout(
+        yaxis={'categoryorder':'total ascending'},
+        height=500,
+        margin=dict(l=50, r=30, t=30, b=30),
+        showlegend=False
+    )
+    fig_top_desc.update_traces(
+        marker_color="#0b8d69",
+        texttemplate='R$ %{text:,.2f}', textposition="outside"
+    )
+    st.plotly_chart(fig_top_desc, use_container_width=True)
+
+col_top3, col_top4 = st.columns(2)
+
+# 3. Top 15 - Baixa de Saldo
+with col_top3:
+    st.markdown("##### Volume de Baixa de Saldo por Filial (Top 15)")
+    df_top_baixa = (
+        df_baixa.groupby("Divisão")["Desconto"]
+        .sum()
+        .reset_index()
+        .sort_values("Desconto", ascending=False)
+        .head(15)
+    )
+    fig_top_baixa = px.bar(
+        df_top_baixa, x="Desconto", y="Divisão", orientation="h",
+        labels={"Desconto": "Volume R$", "Divisão": "Filial"},
+        text="Desconto"
+    )
+    fig_top_baixa.update_layout(
+        yaxis={'categoryorder':'total ascending'},
+        height=500,
+        margin=dict(l=50, r=30, t=30, b=30),
+        showlegend=False
+    )
+    fig_top_baixa.update_traces(
+        marker_color="#da853b",
+        texttemplate='R$ %{text:,.2f}', textposition="outside"
+    )
+    st.plotly_chart(fig_top_baixa, use_container_width=True)
+
+# 4. Top 15 - Cancelamentos
+with col_top4:
+    st.markdown("##### Volume de Cancelamentos por Filial (Top 15)")
+    df_top_cancel = (
+        df_cancel.groupby("Divisão")["Montante"]
+        .sum()
+        .reset_index()
+        .sort_values("Montante", ascending=False)
+        .head(15)
+    )
+    fig_top_cancel = px.bar(
+        df_top_cancel, x="Montante", y="Divisão", orientation="h",
+        labels={"Montante": "Volume R$", "Divisão": "Filial"},
+        text="Montante"
+    )
+    fig_top_cancel.update_layout(
+        yaxis={'categoryorder':'total ascending'},
+        height=500,
+        margin=dict(l=50, r=30, t=30, b=30),
+        showlegend=False
+    )
+    fig_top_cancel.update_traces(
+        marker_color="#a43e3e",
+        texttemplate='R$ %{text:,.2f}', textposition="outside"
+    )
+    st.plotly_chart(fig_top_cancel, use_container_width=True)
